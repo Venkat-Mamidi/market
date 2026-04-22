@@ -340,19 +340,4 @@ At the time this README was written, the suite passes with:
 
 - `tests/` is intentionally included because correctness is a core part of the project.
 - Generated live replay files are ignored by git; you can keep one curated demo replay in `replays/` for showcasing the system.
-- On Windows, use uvicorn without `--reload` for live WebSocket mode.
-
-## Roadmap
-
-Potential next extensions:
-
-- Stylized facts metrics:
-  - return kurtosis
-  - volatility clustering
-  - short-lag return autocorrelation
-- Market shock injection
-- Replay playback controls
-
-## Resume Summary
-
-Built a Python market microstructure simulator featuring a heap-based limit order book with price-time priority, partial fills, cancellation via lazy deletion, four interacting trading agents, inventory/cash accounting, and Kyle's lambda price-impact measurement, validated by an extensive pytest suite.
+- On Windows, use uvicorn without `--reload` for live WebSocket mode.git
