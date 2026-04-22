@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Replay Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --bg-accent: #efe3d0;
+      --surface: rgba(255, 252, 246, 0.78);
+      --surface-strong: #fffaf2;
+      --border: rgba(32, 47, 68, 0.12);
+      --border-strong: rgba(32, 47, 68, 0.2);
+      --text: #182433;
+      --muted: #5f6d7a;
+      --accent: #db6d3f;
+      --accent-deep: #8f3b1c;
+      --teal: #1f7a8c;
+      --shadow: 0 20px 60px rgba(41, 34, 23, 0.08);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Space Grotesk", sans-serif;
+      margin: 0;
+      padding: 28px;
+      background:
+        radial-gradient(circle at top left, rgba(219, 109, 63, 0.18), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(31, 122, 140, 0.14), transparent 22%),
+        linear-gradient(180deg, var(--bg) 0%, #f7f1e8 100%);
+      color: var(--text);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(24, 36, 51, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(24, 36, 51, 0.03) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 4.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      font-size: 1rem;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    .shell {
+      max-width: 1460px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .hero-panel {
+      background:
+        linear-gradient(135deg, rgba(255, 251, 244, 0.94), rgba(245, 233, 216, 0.82));
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(24, 36, 51, 0.06);
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .hero-copy {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+      margin-bottom: 0;
+    }
+
+    .hero-meta {
+      display: grid;
+      gap: 14px;
+    }
+
+    .meta-chip {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid var(--border);
+      font-size: 0.95rem;
+    }
+
+    .meta-chip strong,
+    .meta-chip span {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.9rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-top: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .stat-box {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(246, 239, 228, 0.88));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 94px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .stat-box strong {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .stat-box span {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 1.35rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .chart-panel,
+    .table-panel {
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border-radius: 16px;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border-bottom: 1px solid rgba(32, 47, 68, 0.08);
+      padding: 11px 12px;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: rgba(24, 36, 51, 0.06);
+      color: var(--muted);
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(24, 36, 51, 0.025);
+    }
+
+    tbody tr:hover {
+      background: rgba(219, 109, 63, 0.08);
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 320px;
+      width: 100%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(243, 237, 229, 0.82));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 10px;
+    }
+
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .live-config {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .agent-builder {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .agent-row {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.56);
+    }
+
+    .agent-row-actions {
+      display: flex;
+      align-items: end;
+    }
+
+    .field small {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    select, button {
+      padding: 10px 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      font-size: 14px;
+      background: rgba(255, 255, 255, 0.86);
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--text);
+    }
+
+    input {
+      padding: 10px 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      font-size: 14px;
+      background: rgba(255, 255, 255, 0.86);
+      width: 120px;
+      font-family: "IBM Plex Mono", monospace;
+      color: var(--text);
+    }
+
+    button {
+      cursor: pointer;
+      transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(24, 36, 51, 0.08);
+    }
+
+    #loadReplayButton,
+    #connectLiveButton {
+      background: rgba(31, 122, 140, 0.12);
+    }
+
+    #loadLatestButton {
+      background: rgba(24, 36, 51, 0.08);
+    }
+
+    #startLiveButton {
+      background: linear-gradient(135deg, var(--accent), #ef9a67);
+      color: white;
+      border-color: rgba(143, 59, 28, 0.25);
+    }
+
+    #stopLiveButton {
+      background: linear-gradient(135deg, #8f3b1c, #b94d2d);
+      color: white;
+      border-color: rgba(91, 28, 12, 0.28);
+    }
+
+    #addAgentButton {
+      background: rgba(24, 36, 51, 0.08);
+    }
+
+    .remove-agent-button {
+      width: 100%;
+    }
+
+    .agent-builder.locked {
+      opacity: 0.6;
+    }
+
+    code,
+    #filename,
+    #liveStatus,
+    #currentTimestamp,
+    #numTicks,
+    #totalTrades,
+    #totalSnapshots,
+    #finalMid,
+    #finalSpread {
+      font-family: "IBM Plex Mono", monospace;
+    }
+
+    #status,
+    #liveStatus {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    .section-stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    @media (max-width: 1120px) {
+      .hero,
+      .grid,
+      .grid-3,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 16px;
+      }
+
+      .hero-panel,
+      .card {
+        padding: 18px;
+      }
+
+      .agent-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+  <section class="hero">
+    <div class="hero-panel">
+      <div class="eyebrow">Market Simulation</div>
+      <h1>Replay Dashboard</h1>
+      <p class="hero-copy">Inspect market state, flip between saved runs, and stream live agent simulations into the same interface.</p>
+    </div>
+    <div class="hero-meta">
+      <div class="hero-panel">
+        <h2>Session Status</h2>
+        <div class="meta-chip">
+          <span>Feed</span>
+          <span id="liveStatus">disconnected</span>
+        </div>
+        <div class="meta-chip">
+          <span>Source</span>
+          <span id="filename">-</span>
+        </div>
+        <p id="status">Loading latest replay...</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="card">
+    <h2>Replay Controls</h2>
+    <div class="controls">
+      <label for="replaySelect"><strong>Replay:</strong></label>
+      <select id="replaySelect">
+        <option value="">Loading replays...</option>
+      </select>
+      <button id="loadReplayButton" type="button">Load Replay</button>
+      <button id="loadLatestButton" type="button">Load Latest</button>
+      <button id="connectLiveButton" type="button">Connect Live</button>
+      <button id="startLiveButton" type="button">Start Live Run</button>
+      <button id="stopLiveButton" type="button">Stop Live Run</button>
+    </div>
+    <div class="live-config">
+      <div class="field">
+        <label for="liveTicksInput"><strong>Live Ticks</strong></label>
+        <input id="liveTicksInput" type="number" min="1" value="100" />
+      </div>
+      <div class="field">
+        <label for="liveDelayInput"><strong>Tick Delay (ms)</strong></label>
+        <input id="liveDelayInput" type="number" min="0" value="150" />
+      </div>
+    </div>
+    <div class="controls">
+      <h3 style="margin: 0;">Live Agents</h3>
+      <button id="addAgentButton" type="button">Add Agent</button>
+      <button id="resetAgentsButton" type="button">Reset Defaults</button>
+    </div>
+    <div id="agentBuilder" class="agent-builder"></div>
+    <p class="muted">On Windows, live mode works best when uvicorn is started without <code>--reload</code>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Summary</h2>
+    <div class="stats">
+      <div class="stat-box"><strong>Ticks:</strong> <span id="numTicks">-</span></div>
+      <div class="stat-box"><strong>Current Timestamp:</strong> <span id="currentTimestamp">-</span></div>
+      <div class="stat-box"><strong>Total Trades:</strong> <span id="totalTrades">-</span></div>
+      <div class="stat-box"><strong>Total Snapshots:</strong> <span id="totalSnapshots">-</span></div>
+      <div class="stat-box"><strong>Final Mid Price:</strong> <span id="finalMid">-</span></div>
+      <div class="stat-box"><strong>Final Spread:</strong> <span id="finalSpread">-</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Charts</h2>
+    <div class="grid-3">
+      <div class="chart-panel">
+        <h3>Mid-Price</h3>
+        <div class="chart-wrap">
+            <canvas id="midPriceChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-panel">
+        <h3>Spread</h3>
+        <div class="chart-wrap">
+            <canvas id="spreadChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-panel">
+        <h3>Cumulative Volume</h3>
+        <div class="chart-wrap">
+            <canvas id="volumeChart"></canvas>
+        </div>
+    </div>
+    </div>
+    <p class="muted">Mid-price and spread use snapshots. Cumulative volume uses trade flow over the replay.</p>
+  </div>
+
+  <div class="card">
+    <h2>Final Order Book Snapshot</h2>
+    <div class="grid">
+      <div class="table-panel">
+        <h3>Bid Depth</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Price</th>
+              <th>Qty</th>
+            </tr>
+          </thead>
+          <tbody id="bidDepthBody">
+            <tr><td colspan="2">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-panel">
+        <h3>Ask Depth</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Price</th>
+              <th>Qty</th>
+            </tr>
+          </thead>
+          <tbody id="askDepthBody">
+            <tr><td colspan="2">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Recent Trades</h2>
+    <div class="table-panel">
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Price</th>
+          <th>Qty</th>
+          <th>Aggressor</th>
+        </tr>
+      </thead>
+      <tbody id="tradesBody">
+        <tr><td colspan="4">Loading...</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+  <h2>Agent PnL Ranking</h2>
+  <div class="table-panel">
+  <table>
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Agent</th>
+        <th>PnL</th>
+        <th>Inventory</th>
+        <th>Cash</th>
+        <th>Trades</th>
+      </tr>
+    </thead>
+    <tbody id="pnlRankingBody">
+      <tr><td colspan="6">Loading...</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+  <div class="card">
+  <h2>Agent Table</h2>
+  <div class="table-panel">
+  <table>
+    <thead>
+      <tr>
+        <th>Agent</th>
+        <th>PnL</th>
+        <th>Inventory</th>
+        <th>Cash</th>
+        <th>Trades</th>
+      </tr>
+    </thead>
+    <tbody id="agentTableBody">
+      <tr><td colspan="5">Loading...</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+  </div>
+
+  <script>
+    let midPriceChartInstance = null;
+    let spreadChartInstance = null;
+    let volumeChartInstance = null;
+    let liveSocket = null;
+    let defaultAgentConfigs = [];
+    let liveRunActive = false;
+
+    const agentTypeConfig = {
+      market_maker: ["base_spread", "order_size", "inventory_skew_factor"],
+      noise: ["min_qty", "max_qty", "trade_probability"],
+      momentum: ["lookback_window", "trade_size", "threshold"],
+      mean_reversion: ["lookback_window", "trade_size", "threshold"]
+    };
+
+    function findSnapshotArray(data) {
+      const candidates = [
+        "market_states",
+        "snapshots",
+        "book_snapshots",
+        "state_history",
+        "quote_history"
+      ];
+
+      for (const key of candidates) {
+        if (Array.isArray(data[key]) && data[key].length > 0) {
+          const first = data[key][0];
+          if (first && typeof first === "object" && "mid_price" in first) {
+            return data[key];
+          }
+        }
+      }
+
+      return [];
+    }
+
+    function renderSummary(data, snapshots) {
+      const finalSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
+
+      document.getElementById("numTicks").textContent = data.config?.num_ticks ?? "-";
+      document.getElementById("currentTimestamp").textContent = data.current_timestamp ?? "-";
+      document.getElementById("totalTrades").textContent = data.trades?.length ?? 0;
+      document.getElementById("totalSnapshots").textContent = snapshots.length;
+      document.getElementById("finalMid").textContent = finalSnapshot?.mid_price ?? "-";
+      document.getElementById("finalSpread").textContent = finalSnapshot?.spread ?? "-";
+    }
+
+    function renderDepth(finalSnapshot) {
+      const bidDepthBody = document.getElementById("bidDepthBody");
+      const askDepthBody = document.getElementById("askDepthBody");
+
+      if (!finalSnapshot) {
+        bidDepthBody.innerHTML = `<tr><td colspan="2">No final snapshot found</td></tr>`;
+        askDepthBody.innerHTML = `<tr><td colspan="2">No final snapshot found</td></tr>`;
+        return;
+      }
+
+      const bidDepth = finalSnapshot.bid_depth || [];
+      const askDepth = finalSnapshot.ask_depth || [];
+
+      bidDepthBody.innerHTML = bidDepth.length
+        ? bidDepth.map(level => `<tr><td>${level[0]}</td><td>${level[1]}</td></tr>`).join("")
+        : `<tr><td colspan="2">No bid depth</td></tr>`;
+
+      askDepthBody.innerHTML = askDepth.length
+        ? askDepth.map(level => `<tr><td>${level[0]}</td><td>${level[1]}</td></tr>`).join("")
+        : `<tr><td colspan="2">No ask depth</td></tr>`;
+    }
+
+    function renderTrades(data) {
+      const tradesBody = document.getElementById("tradesBody");
+      const trades = data.trades || [];
+
+      if (!trades.length) {
+        tradesBody.innerHTML = `<tr><td colspan="4">No trades found</td></tr>`;
+        return;
+      }
+
+      const recentTrades = trades.slice(-15).reverse();
+
+      tradesBody.innerHTML = recentTrades.map(trade => `
+        <tr>
+          <td>${trade.timestamp ?? "-"}</td>
+          <td>${trade.price ?? "-"}</td>
+          <td>${trade.qty ?? "-"}</td>
+          <td>${trade.aggressor_side ?? "-"}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderMidPriceChart(snapshots) {
+      const ctx = document.getElementById("midPriceChart").getContext("2d");
+
+      if (midPriceChartInstance) {
+        midPriceChartInstance.destroy();
+      }
+
+      const labels = snapshots.map((_, i) => i);
+      const values = snapshots.map(s => s.mid_price ?? null);
+
+      midPriceChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Mid Price",
+              data: values,
+              tension: 0.15,
+              pointRadius: 0,
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: "Snapshot Index"
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Mid Price"
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderSpreadChart(snapshots) {
+      const ctx = document.getElementById("spreadChart").getContext("2d");
+
+      if (spreadChartInstance) {
+        spreadChartInstance.destroy();
+      }
+
+      const labels = snapshots.map((_, i) => i);
+      const values = snapshots.map(s => s.spread ?? null);
+
+      spreadChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Spread",
+              data: values,
+              tension: 0.15,
+              pointRadius: 0,
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: "Snapshot Index"
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Spread"
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderVolumeChart(trades) {
+      const ctx = document.getElementById("volumeChart").getContext("2d");
+
+      if (volumeChartInstance) {
+        volumeChartInstance.destroy();
+      }
+
+      const labels = [];
+      const values = [];
+      let cumulativeVolume = 0;
+
+      for (let i = 0; i < trades.length; i += 1) {
+        cumulativeVolume += Number(trades[i].qty ?? 0);
+        labels.push(i + 1);
+        values.push(cumulativeVolume);
+      }
+
+      volumeChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Cumulative Volume",
+              data: values,
+              tension: 0.15,
+              pointRadius: 0,
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: "Trade Index"
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Volume"
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function countTradesByAgent(trades, agentNames) {
+  const counts = {};
+  for (const name of agentNames) {
+    counts[name] = 0;
+  }
+
+  for (const trade of trades || []) {
+    const buyId = trade.buy_order_id || "";
+    const sellId = trade.sell_order_id || "";
+
+    for (const name of agentNames) {
+      if (buyId.startsWith(name) || sellId.startsWith(name)) {
+        counts[name] = (counts[name] || 0) + 1;
+      }
+    }
+  }
+
+  return counts;
+}
+
+function parseNumeric(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function extractAgentRows(data) {
+  const trades = data.trades || [];
+  const configuredAgents = data.config?.agents || [];
+  const snapshots = findSnapshotArray(data);
+  const finalSnapshot = snapshots.length ? snapshots[snapshots.length - 1] : null;
+  const finalMidPrice = finalSnapshot?.mid_price;
+
+  function formatNumber(value) {
+    return typeof value === "number" ? value.toFixed(2) : value ?? "-";
+  }
+
+  function markToMarketPnl(agent) {
+    if (typeof agent.pnl === "number") {
+      return agent.pnl;
+    }
+
+    if (
+      typeof agent.cash === "number" &&
+      typeof agent.inventory === "number" &&
+      typeof finalMidPrice === "number"
+    ) {
+      return agent.cash + agent.inventory * finalMidPrice;
+    }
+
+    return "-";
+  }
+
+  // Case 1: top-level agent_stats object
+  // Example:
+  // agent_stats: {
+  //   mm1: { pnl: 12, inventory: 4, cash: 1000 },
+  //   noise1: { pnl: -3, inventory: -1, cash: 980 }
+  // }
+  if (data.agent_stats && typeof data.agent_stats === "object" && !Array.isArray(data.agent_stats)) {
+    const tradeCounts = countTradesByAgent(trades, Object.keys(data.agent_stats));
+
+    return Object.entries(data.agent_stats).map(([name, stats]) => ({
+      name,
+      pnl: stats?.pnl ?? "-",
+      inventory: stats?.inventory ?? "-",
+      cash: stats?.cash ?? "-",
+      trades: tradeCounts[name] ?? 0
+    }));
+  }
+
+  // Case 2: top-level agents array
+  // Example:
+  // agents: [{ agent_id: "mm1", inventory: 4, cash: 1000 }]
+  if (Array.isArray(data.agents) && data.agents.length > 0 && typeof data.agents[0] === "object") {
+    const names = data.agents.map(a => a.agent_id ?? a.name).filter(Boolean);
+    const tradeCounts = countTradesByAgent(trades, names);
+
+    return data.agents.map(agent => ({
+      name: agent.agent_id ?? agent.name ?? "-",
+      pnl: formatNumber(markToMarketPnl(agent)),
+      inventory: agent.inventory ?? "-",
+      cash: formatNumber(agent.cash),
+      trades: tradeCounts[agent.agent_id ?? agent.name] ?? 0
+    }));
+  }
+
+  // Case 3: final snapshot contains agent_states / agents
+  if (finalSnapshot?.agent_states && typeof finalSnapshot.agent_states === "object") {
+    const tradeCounts = countTradesByAgent(trades, Object.keys(finalSnapshot.agent_states));
+
+    return Object.entries(finalSnapshot.agent_states).map(([name, stats]) => ({
+      name,
+      pnl: stats?.pnl ?? "-",
+      inventory: stats?.inventory ?? "-",
+      cash: stats?.cash ?? "-",
+      trades: tradeCounts[name] ?? 0
+    }));
+  }
+
+  if (Array.isArray(finalSnapshot?.agents)) {
+    const names = finalSnapshot.agents.map(a => a.name).filter(Boolean);
+    const tradeCounts = countTradesByAgent(trades, names);
+
+    return finalSnapshot.agents.map(agent => ({
+      name: agent.name ?? "-",
+      pnl: agent.pnl ?? "-",
+      inventory: agent.inventory ?? "-",
+      cash: agent.cash ?? "-",
+      trades: tradeCounts[agent.name] ?? 0
+    }));
+  }
+
+  // Case 4: no explicit stats, but we at least know configured agent names
+  // Build a lightweight fallback table using trade counts only.
+  if (configuredAgents.length > 0) {
+    const tradeCounts = countTradesByAgent(trades, configuredAgents);
+
+    return configuredAgents.map(name => ({
+      name,
+      pnl: "-",
+      inventory: "-",
+      cash: "-",
+      trades: tradeCounts[name] ?? 0
+    }));
+  }
+
+  return [];
+}
+
+function renderAgentTable(data) {
+  const body = document.getElementById("agentTableBody");
+  const rows = extractAgentRows(data);
+
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="5">No agent data found</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = rows.map(row => `
+    <tr>
+      <td>${row.name}</td>
+      <td>${row.pnl}</td>
+      <td>${row.inventory}</td>
+      <td>${row.cash}</td>
+      <td>${row.trades}</td>
+    </tr>
+  `).join("");
+}
+
+function renderPnlRanking(data) {
+  const body = document.getElementById("pnlRankingBody");
+  const rows = extractAgentRows(data)
+    .map(row => ({
+      ...row,
+      numericPnl: parseNumeric(row.pnl)
+    }))
+    .filter(row => row.numericPnl !== null)
+    .sort((a, b) => b.numericPnl - a.numericPnl);
+
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="6">No PnL data found</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = rows.map((row, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${row.name}</td>
+      <td>${row.pnl}</td>
+      <td>${row.inventory}</td>
+      <td>${row.cash}</td>
+      <td>${row.trades}</td>
+    </tr>
+  `).join("");
+}
+
+    async function fetchJson(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    }
+
+    function cloneAgentConfig(config) {
+      return JSON.parse(JSON.stringify(config));
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function randomFloat(min, max, decimals = 2) {
+      return Number((Math.random() * (max - min) + min).toFixed(decimals));
+    }
+
+    function makeRandomAgentConfig(agentType, index) {
+      const baseConfig = {
+        agent_type: agentType,
+        agent_id: `${agentType}_${index + 1}`,
+        position_limit: randomInt(30, 120),
+        inventory: randomInt(-15, 15),
+        cash: randomFloat(-2500, 5000, 2),
+        base_spread: 1.0,
+        order_size: 10,
+        inventory_skew_factor: 0.01,
+        min_qty: 1,
+        max_qty: 10,
+        trade_probability: 0.2,
+        lookback_window: 2,
+        trade_size: 5,
+        threshold: 0.1
+      };
+
+      if (agentType === "market_maker") {
+        return {
+          ...baseConfig,
+          base_spread: randomFloat(0.5, 2.0, 2),
+          order_size: randomInt(5, 25),
+          inventory_skew_factor: randomFloat(0.005, 0.03, 3),
+          inventory: randomInt(-8, 8),
+          cash: randomFloat(-1500, 6000, 2)
+        };
+      }
+
+      if (agentType === "noise") {
+        const minQty = randomInt(1, 5);
+        const maxQty = randomInt(minQty + 2, minQty + 12);
+        return {
+          ...baseConfig,
+          min_qty: minQty,
+          max_qty: maxQty,
+          trade_probability: randomFloat(0.08, 0.45, 2)
+        };
+      }
+
+      if (agentType === "momentum") {
+        return {
+          ...baseConfig,
+          lookback_window: randomInt(2, 6),
+          trade_size: randomInt(2, 12),
+          threshold: randomFloat(0.05, 0.35, 2)
+        };
+      }
+
+      return {
+        ...baseConfig,
+        lookback_window: randomInt(2, 7),
+        trade_size: randomInt(2, 12),
+        threshold: randomFloat(0.05, 0.4, 2)
+      };
+    }
+
+    function createField(label, className, value, type = "text", min = null, step = null) {
+      return `
+        <div class="field">
+          <label>${label}</label>
+          <input class="${className}" type="${type}" value="${value}" ${min !== null ? `min="${min}"` : ""} ${step !== null ? `step="${step}"` : ""} />
+        </div>
+      `;
+    }
+
+    function renderAgentBuilder(configs) {
+      const builder = document.getElementById("agentBuilder");
+      builder.innerHTML = configs.map((config, index) => `
+        <div class="agent-row" data-agent-index="${index}">
+          <div class="field">
+            <label>Type</label>
+            <select class="agent-type">
+              <option value="market_maker" ${config.agent_type === "market_maker" ? "selected" : ""}>market_maker</option>
+              <option value="noise" ${config.agent_type === "noise" ? "selected" : ""}>noise</option>
+              <option value="momentum" ${config.agent_type === "momentum" ? "selected" : ""}>momentum</option>
+              <option value="mean_reversion" ${config.agent_type === "mean_reversion" ? "selected" : ""}>mean_reversion</option>
+            </select>
+          </div>
+          ${createField("Agent ID", "agent-id", config.agent_id)}
+          ${createField("Position Limit", "agent-position-limit", config.position_limit, "number", 1)}
+          ${createField("Inventory", "agent-inventory", config.inventory, "number")}
+          ${createField("Cash", "agent-cash", config.cash, "number", null, "0.01")}
+          <div class="agent-row-actions">
+            <button class="remove-agent-button" type="button">Remove</button>
+          </div>
+          ${createField("Base Spread", "agent-base-spread", config.base_spread, "number", 0, "0.01")}
+          ${createField("Order Size", "agent-order-size", config.order_size, "number", 1)}
+          ${createField("Inventory Skew", "agent-inventory-skew-factor", config.inventory_skew_factor, "number", 0, "0.001")}
+          ${createField("Min Qty", "agent-min-qty", config.min_qty, "number", 1)}
+          ${createField("Max Qty", "agent-max-qty", config.max_qty, "number", 1)}
+          ${createField("Trade Prob.", "agent-trade-probability", config.trade_probability, "number", 0, "0.01")}
+          ${createField("Lookback", "agent-lookback-window", config.lookback_window, "number", 1)}
+          ${createField("Trade Size", "agent-trade-size", config.trade_size, "number", 1)}
+          ${createField("Threshold", "agent-threshold", config.threshold, "number", 0, "0.01")}
+        </div>
+      `).join("");
+
+      updateAgentFieldVisibility();
+    }
+
+    function updateAgentFieldVisibility() {
+      document.querySelectorAll(".agent-row").forEach((row) => {
+        const selectedType = row.querySelector(".agent-type").value;
+        const activeFields = new Set([
+          "agent-base-spread",
+          "agent-order-size",
+          "agent-inventory-skew-factor",
+          "agent-min-qty",
+          "agent-max-qty",
+          "agent-trade-probability",
+          "agent-lookback-window",
+          "agent-trade-size",
+          "agent-threshold"
+        ]);
+
+        activeFields.forEach((className) => {
+          const field = row.querySelector(`.${className}`)?.closest(".field");
+          if (!field) {
+            return;
+          }
+
+          const configKey = className.replace("agent-", "").replaceAll("-", "_");
+          field.style.display = agentTypeConfig[selectedType].includes(configKey) ? "flex" : "none";
+        });
+      });
+    }
+
+    function getAgentConfigsFromForm() {
+      return Array.from(document.querySelectorAll(".agent-row")).map((row) => ({
+        agent_type: row.querySelector(".agent-type").value,
+        agent_id: row.querySelector(".agent-id").value.trim(),
+        position_limit: Number(row.querySelector(".agent-position-limit").value),
+        inventory: Number(row.querySelector(".agent-inventory").value),
+        cash: Number(row.querySelector(".agent-cash").value),
+        base_spread: Number(row.querySelector(".agent-base-spread").value),
+        order_size: Number(row.querySelector(".agent-order-size").value),
+        inventory_skew_factor: Number(row.querySelector(".agent-inventory-skew-factor").value),
+        min_qty: Number(row.querySelector(".agent-min-qty").value),
+        max_qty: Number(row.querySelector(".agent-max-qty").value),
+        trade_probability: Number(row.querySelector(".agent-trade-probability").value),
+        lookback_window: Number(row.querySelector(".agent-lookback-window").value),
+        trade_size: Number(row.querySelector(".agent-trade-size").value),
+        threshold: Number(row.querySelector(".agent-threshold").value)
+      }));
+    }
+
+    async function postJson(url, payload) {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        return response.json();
+    }
+
+    function renderReplay(replay, sourceLabel) {
+        const statusEl = document.getElementById("status");
+        const filenameEl = document.getElementById("filename");
+        const data = replay.data;
+        const snapshots = findSnapshotArray(data);
+        const finalSnapshot = snapshots.length ? snapshots[snapshots.length - 1] : null;
+        const trades = data.trades || [];
+
+        statusEl.textContent = `${sourceLabel} loaded successfully.`;
+        filenameEl.textContent = replay.filename;
+
+        renderSummary(data, snapshots);
+        renderDepth(finalSnapshot);
+        renderTrades(data);
+        renderPnlRanking(data);
+        renderAgentTable(data);
+        renderVolumeChart(trades);
+
+        if (snapshots.length > 0) {
+            renderMidPriceChart(snapshots);
+            renderSpreadChart(snapshots);
+        } else {
+            statusEl.textContent = `${sourceLabel} loaded, but no snapshot series was found.`;
+        }
+    }
+
+    async function populateReplaySelector() {
+        const replaySelect = document.getElementById("replaySelect");
+        const replayList = await fetchJson("/replays");
+        const replays = replayList.replays || [];
+
+        if (!replays.length) {
+            replaySelect.innerHTML = `<option value="">No replays found</option>`;
+            return;
+        }
+
+        replaySelect.innerHTML = replays
+          .map(name => `<option value="${name}">${name}</option>`)
+          .join("");
+    }
+
+    async function loadLatestReplay() {
+        const replay = await fetchJson("/replays/latest");
+        const replaySelect = document.getElementById("replaySelect");
+        if (replaySelect) {
+            replaySelect.value = replay.filename;
+        }
+        renderReplay(replay, "Latest replay");
+    }
+
+    async function loadSelectedReplay() {
+        const replaySelect = document.getElementById("replaySelect");
+        const filename = replaySelect.value;
+
+        if (!filename) {
+            document.getElementById("status").textContent = "Select a replay first.";
+            return;
+        }
+
+        const replay = await fetchJson(`/replays/${filename}`);
+        renderReplay(replay, "Replay");
+    }
+
+    function upsertReplayOption(filename) {
+        if (!filename) {
+            return;
+        }
+
+        const replaySelect = document.getElementById("replaySelect");
+        const existingOption = Array.from(replaySelect.options).find(
+          (option) => option.value === filename
+        );
+
+        if (existingOption) {
+          replaySelect.value = filename;
+          return;
+        }
+
+        if (
+          replaySelect.options.length === 1 &&
+          replaySelect.options[0].value === ""
+        ) {
+          replaySelect.innerHTML = "";
+        }
+
+        const option = document.createElement("option");
+        option.value = filename;
+        option.textContent = filename;
+        replaySelect.prepend(option);
+        replaySelect.value = filename;
+    }
+
+    function setLiveRunEditingState(isRunning) {
+        liveRunActive = isRunning;
+        document.getElementById("addAgentButton").disabled = isRunning;
+        document.getElementById("resetAgentsButton").disabled = isRunning;
+        document.getElementById("startLiveButton").disabled = isRunning;
+        document.getElementById("stopLiveButton").disabled = !isRunning;
+
+        const builder = document.getElementById("agentBuilder");
+        builder.classList.toggle("locked", isRunning);
+
+        builder.querySelectorAll("input, select, button").forEach((element) => {
+          element.disabled = isRunning;
+        });
+    }
+
+    async function initializeDashboard() {
+        const statusEl = document.getElementById("status");
+        try {
+            const defaultAgentsResponse = await fetchJson("/live/default-agents");
+            defaultAgentConfigs = defaultAgentsResponse.agents || [];
+            renderAgentBuilder(defaultAgentConfigs);
+            await populateReplaySelector();
+            await loadLatestReplay();
+        } catch (error) {
+            statusEl.textContent = `Failed to load replay: ${error.message}`;
+        }
+    }
+
+    function connectLiveSocket() {
+      if (liveSocket && liveSocket.readyState === WebSocket.OPEN) {
+        document.getElementById("liveStatus").textContent = "connected";
+        return Promise.resolve();
+      }
+
+      if (liveSocket && liveSocket.readyState === WebSocket.CONNECTING) {
+        return new Promise((resolve, reject) => {
+          liveSocket.addEventListener("open", () => resolve(), { once: true });
+          liveSocket.addEventListener("error", () => reject(new Error("WebSocket failed to connect")), { once: true });
+        });
+      }
+
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+
+      return new Promise((resolve, reject) => {
+        liveSocket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+
+        liveSocket.onopen = () => {
+          document.getElementById("liveStatus").textContent = "connected";
+          document.getElementById("status").textContent = "Live socket connected.";
+          resolve();
+        };
+
+        liveSocket.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+
+          if (message.type === "status") {
+            document.getElementById("liveStatus").textContent = message.message;
+            document.getElementById("status").textContent = `Live update: ${message.message}`;
+            if (message.replay_filename) {
+              upsertReplayOption(message.replay_filename);
+            }
+
+            if (message.message === "live_simulation_started") {
+              setLiveRunEditingState(true);
+            }
+
+            if (
+              message.message === "live_simulation_completed" ||
+              message.message === "live_simulation_stopped"
+            ) {
+              setLiveRunEditingState(false);
+            }
+            return;
+          }
+
+          if (message.type === "state") {
+            renderReplay(
+              {
+                filename: "LIVE",
+                data: message.data
+              },
+              "Live stream"
+            );
+            document.getElementById("liveStatus").textContent = "streaming";
+          }
+        };
+
+        liveSocket.onclose = () => {
+          document.getElementById("liveStatus").textContent = "disconnected";
+        };
+
+        liveSocket.onerror = () => {
+          document.getElementById("liveStatus").textContent = "error";
+          reject(new Error("WebSocket error"));
+        };
+      });
+    }
+
+    document.getElementById("loadReplayButton").addEventListener("click", async () => {
+      try {
+        await loadSelectedReplay();
+      } catch (error) {
+        document.getElementById("status").textContent = `Failed to load replay: ${error.message}`;
+      }
+    });
+
+    document.getElementById("loadLatestButton").addEventListener("click", async () => {
+      try {
+        await loadLatestReplay();
+      } catch (error) {
+        document.getElementById("status").textContent = `Failed to load replay: ${error.message}`;
+      }
+    });
+
+    document.getElementById("connectLiveButton").addEventListener("click", async () => {
+      try {
+        await connectLiveSocket();
+      } catch (error) {
+        document.getElementById("status").textContent = `Failed to connect live socket: ${error.message}`;
+      }
+    });
+
+    document.getElementById("startLiveButton").addEventListener("click", async () => {
+      try {
+        await connectLiveSocket();
+        const liveTicks = Number(document.getElementById("liveTicksInput").value);
+        const liveDelay = Number(document.getElementById("liveDelayInput").value);
+        const response = await postJson("/live/start", {
+          num_ticks: liveTicks,
+          tick_delay_ms: liveDelay,
+          seed_mid_price: 100.0,
+          seed_levels: 5,
+          seed_qty_per_level: 20,
+          seed_spread: 2.0,
+          agents: getAgentConfigsFromForm()
+        });
+        document.getElementById("status").textContent = `Live run started for ${response.num_ticks} ticks.`;
+        setLiveRunEditingState(true);
+      } catch (error) {
+        document.getElementById("status").textContent = `Failed to start live run: ${error.message}`;
+      }
+    });
+
+    document.getElementById("stopLiveButton").addEventListener("click", async () => {
+      try {
+        const response = await postJson("/live/stop", {});
+        document.getElementById("status").textContent = `Live run ${response.status}.`;
+        document.getElementById("liveStatus").textContent = "stopped";
+        setLiveRunEditingState(false);
+      } catch (error) {
+        document.getElementById("status").textContent = `Failed to stop live run: ${error.message}`;
+      }
+    });
+
+    document.getElementById("addAgentButton").addEventListener("click", () => {
+      const configs = getAgentConfigsFromForm();
+      const agentTypes = ["noise", "market_maker", "momentum", "mean_reversion"];
+      const randomType = agentTypes[randomInt(0, agentTypes.length - 1)];
+      configs.push(makeRandomAgentConfig(randomType, configs.length));
+      renderAgentBuilder(configs);
+    });
+
+    document.getElementById("resetAgentsButton").addEventListener("click", () => {
+      renderAgentBuilder(defaultAgentConfigs.map(cloneAgentConfig));
+    });
+
+    document.getElementById("agentBuilder").addEventListener("change", (event) => {
+      if (event.target.classList.contains("agent-type")) {
+        updateAgentFieldVisibility();
+      }
+    });
+
+    document.getElementById("agentBuilder").addEventListener("click", (event) => {
+      if (liveRunActive) {
+        return;
+      }
+
+      if (!event.target.classList.contains("remove-agent-button")) {
+        return;
+      }
+
+      const configs = getAgentConfigsFromForm();
+      const row = event.target.closest(".agent-row");
+      const index = Number(row.dataset.agentIndex);
+      configs.splice(index, 1);
+      renderAgentBuilder(configs);
+    });
+
+    setLiveRunEditingState(false);
+    initializeDashboard();
+  </script>
+</body>
+</html>
