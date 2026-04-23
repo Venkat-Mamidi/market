@@ -1157,13 +1157,62 @@ function renderPnlRanking(data) {
       return Number((Math.random() * (max - min) + min).toFixed(decimals));
     }
 
+    function scaleInventoryToLimit(positionLimit, fraction = 0.3) {
+      const cap = Math.max(1, Math.floor(positionLimit * fraction));
+      return randomInt(-cap, cap);
+    }
+
+    function makeStartingState(agentType, positionLimit, sizing = {}) {
+      const {
+        orderSize = 6,
+        tradeSize = 5,
+        maxQty = 8
+      } = sizing;
+
+      const inventoryFractionByType = {
+        market_maker: 0.12,
+        noise: 0.2,
+        momentum: 0.28,
+        mean_reversion: 0.28
+      };
+
+      const inventory = scaleInventoryToLimit(
+        positionLimit,
+        inventoryFractionByType[agentType] ?? 0.25
+      );
+
+      const workingSize = Math.max(orderSize, tradeSize, maxQty, 1);
+      const inventoryNotional = Math.abs(inventory) * 100;
+      const activityReserve = workingSize * 100 * randomFloat(8, 22, 2);
+      const baseCashByType = {
+        market_maker: randomFloat(12000, 28000, 2),
+        noise: randomFloat(4000, 12000, 2),
+        momentum: randomFloat(6000, 16000, 2),
+        mean_reversion: randomFloat(6000, 16000, 2)
+      };
+
+      let cash = (baseCashByType[agentType] ?? 8000) + inventoryNotional + activityReserve;
+
+      if (inventory > 0) {
+        cash -= inventory * 100 * randomFloat(0.35, 0.75, 2);
+      } else if (inventory < 0) {
+        cash += Math.abs(inventory) * 100 * randomFloat(0.2, 0.5, 2);
+      }
+
+      return {
+        inventory,
+        cash: Number(cash.toFixed(2))
+      };
+    }
+
     function makeRandomAgentConfig(agentType, index) {
+      const positionLimit = randomInt(30, 120);
       const baseConfig = {
         agent_type: agentType,
         agent_id: `${agentType}_${index + 1}`,
-        position_limit: randomInt(30, 120),
-        inventory: randomInt(-15, 15),
-        cash: randomFloat(-2500, 5000, 2),
+        position_limit: positionLimit,
+        inventory: 0,
+        cash: 0,
         base_spread: 1.0,
         order_size: 10,
         inventory_skew_factor: 0.01,
@@ -1176,21 +1225,33 @@ function renderPnlRanking(data) {
       };
 
       if (agentType === "market_maker") {
+        const orderSize = randomInt(5, 25);
+        const inventorySkew = randomFloat(0.005, 0.03, 3);
+        const startingState = makeStartingState(agentType, positionLimit, {
+          orderSize
+        });
+
         return {
           ...baseConfig,
           base_spread: randomFloat(0.5, 2.0, 2),
-          order_size: randomInt(5, 25),
-          inventory_skew_factor: randomFloat(0.005, 0.03, 3),
-          inventory: randomInt(-8, 8),
-          cash: randomFloat(-1500, 6000, 2)
+          order_size: orderSize,
+          inventory_skew_factor: inventorySkew,
+          inventory: startingState.inventory,
+          cash: startingState.cash
         };
       }
 
       if (agentType === "noise") {
         const minQty = randomInt(1, 5);
         const maxQty = randomInt(minQty + 2, minQty + 12);
+        const startingState = makeStartingState(agentType, positionLimit, {
+          maxQty
+        });
+
         return {
           ...baseConfig,
+          inventory: startingState.inventory,
+          cash: startingState.cash,
           min_qty: minQty,
           max_qty: maxQty,
           trade_probability: randomFloat(0.08, 0.45, 2)
@@ -1198,18 +1259,32 @@ function renderPnlRanking(data) {
       }
 
       if (agentType === "momentum") {
+        const tradeSize = randomInt(2, 12);
+        const startingState = makeStartingState(agentType, positionLimit, {
+          tradeSize
+        });
+
         return {
           ...baseConfig,
+          inventory: startingState.inventory,
+          cash: startingState.cash,
           lookback_window: randomInt(2, 6),
-          trade_size: randomInt(2, 12),
+          trade_size: tradeSize,
           threshold: randomFloat(0.05, 0.35, 2)
         };
       }
 
+      const tradeSize = randomInt(2, 12);
+      const startingState = makeStartingState(agentType, positionLimit, {
+        tradeSize
+      });
+
       return {
         ...baseConfig,
+        inventory: startingState.inventory,
+        cash: startingState.cash,
         lookback_window: randomInt(2, 7),
-        trade_size: randomInt(2, 12),
+        trade_size: tradeSize,
         threshold: randomFloat(0.05, 0.4, 2)
       };
     }
