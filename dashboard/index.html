@@ -155,7 +155,7 @@
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 14px;
     }
 
@@ -483,9 +483,17 @@
       <div class="stat-box"><strong>Ticks:</strong> <span id="numTicks">-</span></div>
       <div class="stat-box"><strong>Current Timestamp:</strong> <span id="currentTimestamp">-</span></div>
       <div class="stat-box"><strong>Total Trades:</strong> <span id="totalTrades">-</span></div>
+      <div class="stat-box"><strong>Volume:</strong> <span id="totalVolume">-</span></div>
       <div class="stat-box"><strong>Total Snapshots:</strong> <span id="totalSnapshots">-</span></div>
+      <div class="stat-box"><strong>Final Best Bid:</strong> <span id="finalBestBid">-</span></div>
+      <div class="stat-box"><strong>Final Best Ask:</strong> <span id="finalBestAsk">-</span></div>
       <div class="stat-box"><strong>Final Mid Price:</strong> <span id="finalMid">-</span></div>
       <div class="stat-box"><strong>Final Spread:</strong> <span id="finalSpread">-</span></div>
+      <div class="stat-box"><strong>Average Spread:</strong> <span id="averageSpread">-</span></div>
+      <div class="stat-box"><strong>Kyle Lambda:</strong> <span id="kyleLambda">-</span></div>
+      <div class="stat-box"><strong>First Mid Price:</strong> <span id="firstMidPrice">-</span></div>
+      <div class="stat-box"><strong>Last Mid Price:</strong> <span id="lastMidPrice">-</span></div>
+      <div class="stat-box"><strong>Price Change:</strong> <span id="priceChange">-</span></div>
     </div>
   </div>
 
@@ -645,15 +653,127 @@
       return [];
     }
 
+    function formatMetricValue(value) {
+      if (value === null || value === undefined) {
+        return "-";
+      }
+
+      if (typeof value === "number") {
+        if (Number.isInteger(value)) {
+          return String(value);
+        }
+
+        return value.toFixed(6).replace(/\.?0+$/, "");
+      }
+
+      return String(value);
+    }
+
+    function computeKyleLambda(trades, snapshots) {
+      const midByTick = new Map();
+      snapshots.forEach((snapshot, index) => {
+        if (snapshot?.mid_price !== null && snapshot?.mid_price !== undefined) {
+          midByTick.set(index, snapshot.mid_price);
+        }
+      });
+
+      const signedFlowByTick = new Map();
+      trades.forEach((trade) => {
+        if (!trade?.aggressor_side) {
+          return;
+        }
+
+        const signedQty = trade.aggressor_side === "buy" ? trade.qty : -trade.qty;
+        const prior = signedFlowByTick.get(trade.timestamp) ?? 0;
+        signedFlowByTick.set(trade.timestamp, prior + signedQty);
+      });
+
+      const observations = [];
+      signedFlowByTick.forEach((signedFlow, tick) => {
+        if (!signedFlow || tick <= 0) {
+          return;
+        }
+
+        if (!midByTick.has(tick) || !midByTick.has(tick - 1)) {
+          return;
+        }
+
+        observations.push({
+          flow: signedFlow,
+          change: midByTick.get(tick) - midByTick.get(tick - 1)
+        });
+      });
+
+      if (observations.length < 2) {
+        return null;
+      }
+
+      const meanFlow = observations.reduce((sum, item) => sum + item.flow, 0) / observations.length;
+      const meanChange = observations.reduce((sum, item) => sum + item.change, 0) / observations.length;
+      const varianceFlow = observations.reduce((sum, item) => sum + ((item.flow - meanFlow) ** 2), 0);
+
+      if (varianceFlow === 0) {
+        return null;
+      }
+
+      const covariance = observations.reduce(
+        (sum, item) => sum + ((item.flow - meanFlow) * (item.change - meanChange)),
+        0
+      );
+
+      return covariance / varianceFlow;
+    }
+
+    function extractMetrics(data, snapshots) {
+      if (data.metrics && typeof data.metrics === "object") {
+        return data.metrics;
+      }
+
+      const trades = data.trades || [];
+      const spreads = snapshots
+        .map((snapshot) => snapshot?.spread)
+        .filter((spread) => spread !== null && spread !== undefined);
+      const midPrices = snapshots
+        .map((snapshot) => snapshot?.mid_price)
+        .filter((midPrice) => midPrice !== null && midPrice !== undefined);
+
+      const firstMidPrice = midPrices.length ? midPrices[0] : null;
+      const lastMidPrice = midPrices.length ? midPrices[midPrices.length - 1] : null;
+
+      return {
+        trade_count: trades.length,
+        total_volume: trades.reduce((sum, trade) => sum + (trade.qty ?? 0), 0),
+        average_spread: spreads.length
+          ? spreads.reduce((sum, spread) => sum + spread, 0) / spreads.length
+          : null,
+        kyle_lambda: computeKyleLambda(trades, snapshots),
+        first_mid_price: firstMidPrice,
+        last_mid_price: lastMidPrice,
+        price_change:
+          firstMidPrice !== null && lastMidPrice !== null
+            ? lastMidPrice - firstMidPrice
+            : null
+      };
+    }
+
     function renderSummary(data, snapshots) {
       const finalSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
+      const metrics = extractMetrics(data, snapshots);
 
       document.getElementById("numTicks").textContent = data.config?.num_ticks ?? "-";
       document.getElementById("currentTimestamp").textContent = data.current_timestamp ?? "-";
-      document.getElementById("totalTrades").textContent = data.trades?.length ?? 0;
+      document.getElementById("totalTrades").textContent = formatMetricValue(metrics.trade_count ?? data.trades?.length ?? 0);
+      document.getElementById("totalVolume").textContent = formatMetricValue(metrics.total_volume);
       document.getElementById("totalSnapshots").textContent = snapshots.length;
-      document.getElementById("finalMid").textContent = finalSnapshot?.mid_price ?? "-";
-      document.getElementById("finalSpread").textContent = finalSnapshot?.spread ?? "-";
+      document.getElementById("finalBestBid").textContent = formatMetricValue(finalSnapshot?.best_bid);
+      document.getElementById("finalBestAsk").textContent = formatMetricValue(finalSnapshot?.best_ask);
+      document.getElementById("finalMid").textContent = formatMetricValue(finalSnapshot?.mid_price);
+      document.getElementById("finalSpread").textContent = formatMetricValue(finalSnapshot?.spread);
+      document.getElementById("averageSpread").textContent = formatMetricValue(metrics.average_spread);
+      document.getElementById("kyleLambda").textContent = formatMetricValue(metrics.kyle_lambda);
+      document.getElementById("firstMidPrice").textContent = formatMetricValue(metrics.first_mid_price);
+      document.getElementById("lastMidPrice").textContent = formatMetricValue(metrics.last_mid_price);
+      document.getElementById("priceChange").textContent = formatMetricValue(metrics.price_change);
     }
 
     function renderDepth(finalSnapshot) {

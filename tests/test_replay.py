@@ -89,6 +89,9 @@ def test_simulation_to_dict_serializes_engine_state():
     assert len(data["trades"]) == 1
     assert len(data["snapshots"]) == 1
     assert data["agents"][0]["agent_id"] == "noise1"
+    assert data["metrics"]["trade_count"] == 1
+    assert data["metrics"]["total_volume"] == 1
+    assert "average_spread" in data["metrics"]
 
 
 def test_save_and_load_simulation_round_trips_json(tmp_path):
@@ -104,3 +107,4 @@ def test_save_and_load_simulation_round_trips_json(tmp_path):
     assert loaded["config"] == {"num_ticks": 1}
     assert loaded["current_timestamp"] == 1
     assert loaded["agents"][0]["agent_type"] == "NoiseTrader"
+    assert "metrics" in loaded

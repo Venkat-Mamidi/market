@@ -1,7 +1,9 @@
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 from core.agents.base import BaseAgent
+from core.metrics import compute_metrics
 from core.order import Trade
 from core.orderbook import MarketSnapshot
 from core.simulation import SimulationEngine
@@ -42,6 +44,7 @@ def simulation_to_dict(
     engine: SimulationEngine,
     config: dict | None = None,
 ) -> dict:
+    metrics = compute_metrics(engine.trade_history, engine.snapshot_history)
     return {
         "config": config or {},
         "current_timestamp": engine.current_timestamp,
@@ -51,6 +54,7 @@ def simulation_to_dict(
             for snapshot in engine.snapshot_history
         ],
         "agents": [agent_to_dict(agent) for agent in engine.agents],
+        "metrics": asdict(metrics),
     }
 
 
