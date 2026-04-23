@@ -39,8 +39,8 @@ class AgentConfig(BaseModel):
 
 
 class LiveSimulationRequest(BaseModel):
-    num_ticks: int = 100
-    tick_delay_ms: int = 150
+    num_ticks: int = 500
+    tick_delay_ms: int = 100
     seed_mid_price: float = 100.0
     seed_levels: int = 5
     seed_qty_per_level: int = 20
@@ -91,17 +91,39 @@ def build_default_agent_configs() -> list[AgentConfig]:
             agent_type="market_maker",
             agent_id="mm1",
             position_limit=100,
+            inventory=8,
+            cash=18000.0,
             base_spread=1.0,
             order_size=10,
             inventory_skew_factor=0.01,
         ),
-        AgentConfig(agent_type="noise", agent_id="noise1", position_limit=50),
-        AgentConfig(agent_type="noise", agent_id="noise2", position_limit=50),
-        AgentConfig(agent_type="noise", agent_id="noise3", position_limit=50),
+        AgentConfig(
+            agent_type="noise",
+            agent_id="noise1",
+            position_limit=50,
+            inventory=3,
+            cash=6500.0,
+        ),
+        AgentConfig(
+            agent_type="noise",
+            agent_id="noise2",
+            position_limit=50,
+            inventory=6,
+            cash=7200.0,
+        ),
+        AgentConfig(
+            agent_type="noise",
+            agent_id="noise3",
+            position_limit=50,
+            inventory=1,
+            cash=5800.0,
+        ),
         AgentConfig(
             agent_type="momentum",
             agent_id="mom1",
             position_limit=50,
+            inventory=4,
+            cash=9000.0,
             lookback_window=2,
             trade_size=5,
             threshold=0.1,
@@ -110,6 +132,8 @@ def build_default_agent_configs() -> list[AgentConfig]:
             agent_type="mean_reversion",
             agent_id="mr1",
             position_limit=50,
+            inventory=5,
+            cash=9200.0,
             lookback_window=3,
             trade_size=5,
             threshold=0.2,
